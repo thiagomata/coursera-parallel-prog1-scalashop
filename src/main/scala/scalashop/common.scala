@@ -49,7 +49,6 @@ def boxBlurKernel(src: Img, x: Int, y: Int, radius: Int): RGBA =
         boxY <- clamp(y - radius, 0, src.height - 1) to clamp(y + radius, 0, src.height - 1) ) {
         val neighbor = src(boxX, boxY)
         val r = red(neighbor)
-        println(s"red: $r")
         redSum += red(neighbor)
         greenSum += green(neighbor)
         blueSum +=  blue(neighbor)

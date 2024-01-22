@@ -2,6 +2,9 @@ package scalashop
 
 import org.scalameter.*
 
+import java.util.concurrent.ForkJoinTask
+import scala.collection.parallel.ForkJoinTasks
+
 object HorizontalBoxBlurRunner:
 
   val standardConfig = config(
@@ -38,22 +41,32 @@ object HorizontalBoxBlur extends HorizontalBoxBlurInterface:
    *  Within each row, `blur` traverses the pixels by going from left to right.
    */
   def blur(src: Img, dst: Img, from: Int, end: Int, radius: Int): Unit =
-    println("")
-    for (y <- 0 until src.height) {
-      for (x <- from until end) {
-        println(s"[x=$x, y=$y]")
+    for (x <- 0 until src.width) {
+      for (y <- from until end) {
         dst(x, y) = boxBlurKernel(src, x, y, radius)
       }
-      println(" blur")
     }
 
-      /** Blurs the rows of the source image in parallel using `numTasks` tasks.
+  /** Blurs the rows of the source image in parallel using `numTasks` tasks.
    *
    *  Parallelization is done by stripping the source image `src` into
    *  `numTasks` separate strips, where each strip is composed of some number of
    *  rows.
    */
   def parBlur(src: Img, dst: Img, numTasks: Int, radius: Int): Unit =
-    // TODO implement using the `task` construct and the `blur` method
-    ???
+    val jobRange = src.width / numTasks
+    var tasks = List[ForkJoinTask[Unit]]()
+    for (i <- 0 until numTasks) {
+      val from = clamp(i * jobRange, 0, src.height)
+      val end = clamp((i + 1) * jobRange, 0, src.height)
+      blur(src, dst, from, end, radius)
+      val t = task(blur(src, dst, from, end, radius))
+      tasks = t :: tasks
+    }
+    runTasks(tasks)
 
+
+  private def runTasks(tasks: List[ForkJoinTask[Unit]]): Unit =
+    tasks.foreach(
+      (t: ForkJoinTask[Unit]) => t.join()
+    )
