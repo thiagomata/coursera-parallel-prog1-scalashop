@@ -96,3 +96,11 @@ def parallel[A, B, C, D](taskA: => A, taskB: => B, taskC: => C, taskD: => D): (A
   val tc = task { taskC }
   val td = taskD
   (ta.join(), tb.join(), tc.join(), td)
+
+def slicesBlocks(total: Int, steps: Int): List[(Int, Int)] = {
+  val stepSize = total / steps
+  val roundBlocks = 0 to total by Math.max(stepSize, 1)
+  val startBlocks = roundBlocks.reverse.tail.reverse.toList :+ total
+  val pairBlocks = startBlocks.zip(startBlocks.tail)
+  pairBlocks
+}

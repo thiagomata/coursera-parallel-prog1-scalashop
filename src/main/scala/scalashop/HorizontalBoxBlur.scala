@@ -43,7 +43,7 @@ object HorizontalBoxBlur extends HorizontalBoxBlurInterface:
   def blur(src: Img, dst: Img, from: Int, end: Int, radius: Int): Unit =
     for (x <- 0 until src.width) {
       for (y <- from until end) {
-        dst(x, y) = boxBlurKernel(src, x, y, radius)
+        dst.update(x, y, boxBlurKernel(src, x, y, radius))
       }
     }
 
@@ -54,19 +54,14 @@ object HorizontalBoxBlur extends HorizontalBoxBlurInterface:
    *  rows.
    */
   def parBlur(src: Img, dst: Img, numTasks: Int, radius: Int): Unit =
-    val jobRange = src.width / numTasks
-    var tasks = List[ForkJoinTask[Unit]]()
-    for (i <- 0 until numTasks) {
-      val from = clamp(i * jobRange, 0, src.height)
-      val end = clamp((i + 1) * jobRange, 0, src.height)
-      blur(src, dst, from, end, radius)
-      val t = task(blur(src, dst, from, end, radius))
-      tasks = t :: tasks
-    }
-    runTasks(tasks)
+    val pairBlocks = slicesBlocks(src.height, numTasks)
+
+    pairBlocks.map(
+      (pair: (Int, Int)) => {
+        val (from, end) = pair
+        task(blur(src, dst, from, end, radius))
+      }
+    ).foreach(_.join())
 
 
-  private def runTasks(tasks: List[ForkJoinTask[Unit]]): Unit =
-    tasks.foreach(
-      (t: ForkJoinTask[Unit]) => t.join()
-    )
+
